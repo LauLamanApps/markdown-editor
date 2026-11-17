@@ -15,7 +15,7 @@ LSREGISTER = /System/Library/Frameworks/CoreServices.framework/Frameworks/Launch
 
 SHARED_SRC = $(wildcard Sources/Shared/*.swift)
 EXT_SRC    = $(wildcard Sources/Extension/*.swift) $(SHARED_SRC)
-APP_SRC    = $(wildcard Sources/App/*.swift)
+APP_SRC    = $(wildcard Sources/App/*.swift) $(SHARED_SRC)
 CLI_SRC    = $(wildcard Sources/CLI/*.swift) $(SHARED_SRC)
 
 SWIFTC = xcrun swiftc -O -swift-version 5
@@ -37,6 +37,7 @@ $(APP): $(EXT_SRC) $(APP_SRC) Resources/*.plist Resources/*.entitlements Makefil
 			-framework QuickLookUI -framework UniformTypeIdentifiers \
 			$(EXT_SRC) -o $(BUILD)/obj/ext-$$arch || exit 1; \
 		$(SWIFTC) -target $$arch-apple-macos$(MIN_MACOS) -module-name $(APP_NAME) \
+			-framework WebKit -framework UniformTypeIdentifiers \
 			$(APP_SRC) -o $(BUILD)/obj/app-$$arch || exit 1; \
 	done
 	@lipo -create $(foreach a,$(ARCHS),$(BUILD)/obj/ext-$(a)) -output $(APPEX)/Contents/MacOS/$(APP_NAME)Extension

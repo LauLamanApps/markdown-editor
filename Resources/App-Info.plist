@@ -6,6 +6,23 @@
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
 	<string>Markdown Preview</string>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Markdown Document</string>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>net.daringfireball.markdown</string>
+			</array>
+			<key>NSDocumentClass</key>
+			<string>MarkdownDocument</string>
+		</dict>
+	</array>
 	<key>CFBundleExecutable</key>
 	<string>MarkdownPreview</string>
 	<key>CFBundleIdentifier</key>

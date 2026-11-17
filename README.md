@@ -43,6 +43,16 @@ Still seeing plain text?
 2. Reset Quick Look: `qlmanage -r && qlmanage -r cache`, then relaunch Finder (⌥-right-click the Finder icon → Relaunch).
 3. Another app might have claimed `.md` previews (e.g. QLMarkdown). Turn its extension off in the same settings pane.
 
+## Editor
+
+`MarkdownPreview.app` is also a small Markdown editor: plain-text editing with syntax highlighting on the left, live preview on the right.
+
+- Open files via **File → Open**, drag them onto the app, or **Open With → Markdown Preview** in Finder (make it the default via Get Info → Open with → Change All)
+- Autosave and version history like other Mac document apps
+- Format shortcuts: ⌘B bold, ⌘I italic, ⌘K link, ⇧⌘K inline code, ⌥⌘1–3 headings, ⇧⌘L list, ⌘' quote
+- ⌘1 / ⌘2 / ⌘3 switch between editor only, side by side and preview only
+- Export as HTML (⇧⌘E) and print
+
 ## Uninstall
 
 ```bash
