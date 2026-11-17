@@ -11,11 +11,16 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSText
     private let textView: MarkdownTextView
     private let editorScroll = NSScrollView()
     private let editorContainer = NSView()
+    private let formatBar = FormatBar(entries: EditorWindowController.formatEntries)
     private let statusBar = NSVisualEffectView()
     private let statusLeft = NSTextField(labelWithString: "")
     private let statusRight = NSTextField(labelWithString: "")
     private let webView: WKWebView
     private let split = NSSplitViewController()
+    private let fileTree = FileTreeViewController()
+    private var sidebarItem: NSSplitViewItem!
+    private var editorItem: NSSplitViewItem!
+    private var previewItem: NSSplitViewItem!
     private let highlighter = MarkdownHighlighter()
     private var layoutGroup: NSToolbarItemGroup?
 
@@ -40,8 +45,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSText
                               backing: .buffered, defer: false)
         window.minSize = NSSize(width: 520, height: 320)
         window.tabbingMode = .preferred
-        // Title on its own row, so the toolbar starts at the leading edge
-        window.toolbarStyle = .expanded
+        window.toolbarStyle = .unified
         super.init(window: window)
 
         buildEditor(text)
@@ -52,24 +56,30 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSText
         editorVC.view = editorContainer
         let previewVC = NSViewController()
         previewVC.view = webView
-        let editorItem = NSSplitViewItem(viewController: editorVC)
-        let previewItem = NSSplitViewItem(viewController: previewVC)
-        for item in [editorItem, previewItem] {
+        sidebarItem = NSSplitViewItem(sidebarWithViewController: fileTree)
+        sidebarItem.minimumThickness = 160
+        sidebarItem.maximumThickness = 420
+        sidebarItem.canCollapse = true
+        editorItem = NSSplitViewItem(viewController: editorVC)
+        previewItem = NSSplitViewItem(viewController: previewVC)
+        for item in [editorItem!, previewItem!] {
             item.canCollapse = true
             item.minimumThickness = 260
         }
+        split.addSplitViewItem(sidebarItem)
         split.addSplitViewItem(editorItem)
         split.addSplitViewItem(previewItem)
         split.splitView.isVertical = true
         split.splitView.dividerStyle = .thin
-        split.splitView.autosaveName = "EditorSplit"
+        split.splitView.autosaveName = "EditorSplit.v2"
+        fileTree.openMarkdown = { [weak self] url in self?.openFromSidebar(url) }
 
         window.contentViewController = split
         window.setContentSize(NSSize(width: 1200, height: 800))
         window.delegate = self
         window.setFrameAutosaveName("EditorWindow")
 
-        let toolbar = NSToolbar(identifier: "EditorToolbar")
+        let toolbar = NSToolbar(identifier: "EditorToolbar.v4")
         toolbar.delegate = self
         toolbar.displayMode = .iconOnly
         toolbar.allowsUserCustomization = true
@@ -140,12 +150,15 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSText
         }
         let divider = NSBox()
         divider.boxType = .separator
-        for view in [editorScroll, statusBar, divider] as [NSView] {
+        for view in [formatBar, editorScroll, statusBar, divider] as [NSView] {
             view.translatesAutoresizingMaskIntoConstraints = false
             editorContainer.addSubview(view)
         }
         NSLayoutConstraint.activate([
-            editorScroll.topAnchor.constraint(equalTo: editorContainer.topAnchor),
+            formatBar.topAnchor.constraint(equalTo: editorContainer.safeAreaLayoutGuide.topAnchor),
+            formatBar.leadingAnchor.constraint(equalTo: editorContainer.leadingAnchor),
+            formatBar.trailingAnchor.constraint(equalTo: editorContainer.trailingAnchor),
+            editorScroll.topAnchor.constraint(equalTo: formatBar.bottomAnchor),
             editorScroll.leadingAnchor.constraint(equalTo: editorContainer.leadingAnchor),
             editorScroll.trailingAnchor.constraint(equalTo: editorContainer.trailingAnchor),
             editorScroll.bottomAnchor.constraint(equalTo: statusBar.topAnchor),
@@ -290,6 +303,35 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSText
         // Relative links and images resolve against the file's folder
         guard window != nil else { return }
         loadPage()
+        if let url = documentURL {
+            if fileTree.root == nil { fileTree.setRoot(url.deletingLastPathComponent()) }
+            fileTree.reveal(url)
+        }
+    }
+
+    // MARK: Sidebar
+
+    /// Opens a file chosen in the sidebar as a tab in this window, keeping the sidebar's folder.
+    private func openFromSidebar(_ url: URL) {
+        if url.standardizedFileURL == documentURL?.standardizedFileURL { return }
+        let root = fileTree.root?.url
+        let collapsed = sidebarItem.isCollapsed
+        NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { document, _, error in
+            if let error { NSApp.presentError(error); return }
+            guard let editor = document?.windowControllers.first as? EditorWindowController else { return }
+            editor.showFolder(root, collapsed: collapsed)
+        }
+    }
+
+    func showFolder(_ url: URL?, collapsed: Bool = false) {
+        fileTree.setRoot(url)
+        if let documentURL { fileTree.reveal(documentURL) }
+        sidebarItem.isCollapsed = collapsed
+    }
+
+    @objc func openFolder(_ sender: Any?) {
+        sidebarItem.animator().isCollapsed = false
+        fileTree.chooseFolder(sender)
     }
 
     private func loadPage() {
@@ -443,16 +485,14 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSText
     // MARK: Layout
 
     private var layout: Layout {
-        let items = split.splitViewItems
-        if items[0].isCollapsed { return .preview }
-        if items[1].isCollapsed { return .editor }
+        if editorItem.isCollapsed { return .preview }
+        if previewItem.isCollapsed { return .editor }
         return .split
     }
 
     private func apply(_ layout: Layout, focus: Bool) {
-        let items = split.splitViewItems
-        items[0].isCollapsed = layout == .preview
-        items[1].isCollapsed = layout == .editor
+        editorItem.isCollapsed = layout == .preview
+        previewItem.isCollapsed = layout == .editor
         layoutGroup?.selectedIndex = layout.rawValue
         if focus { window?.makeFirstResponder(layout == .preview ? webView : textView) }
         if layout == .split { syncPreviewScroll() }
@@ -619,30 +659,33 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSText
         return true
     }
 
-    // MARK: Toolbar
+    // MARK: Format bar and toolbar
+
+    private static let formatEntries: [FormatBar.Entry] = [
+        .init(title: "Bold", symbol: "bold", action: #selector(toggleBold(_:))),
+        .init(title: "Italic", symbol: "italic", action: #selector(toggleItalic(_:))),
+        .init(title: "Strikethrough", symbol: "strikethrough", action: #selector(toggleStrikethrough(_:))),
+        .init(title: "Heading", symbol: "textformat.size", action: nil,
+              menu: (1...6).map { ("Heading \($0)", #selector(setHeading(_:)), $0) } + [("Body Text", #selector(setHeading(_:)), 0)]),
+        .separator,
+        .init(title: "Bulleted List", symbol: "list.bullet", action: #selector(toggleBulletList(_:))),
+        .init(title: "Numbered List", symbol: "list.number", action: #selector(toggleNumberedList(_:))),
+        .init(title: "Task List", symbol: "checklist", action: #selector(toggleTaskList(_:))),
+        .init(title: "Quote", symbol: "text.quote", action: #selector(toggleQuote(_:))),
+        .separator,
+        .init(title: "Code", symbol: "chevron.left.forwardslash.chevron.right", action: #selector(toggleCode(_:))),
+        .init(title: "Link", symbol: "link", action: #selector(insertLink(_:))),
+        .init(title: "Image", symbol: "photo", action: #selector(insertImage(_:))),
+        .init(title: "Table", symbol: "tablecells", action: #selector(insertTable(_:))),
+    ]
 
     private enum ToolbarID {
         static let layout = NSToolbarItem.Identifier("layout")
-        static let bold = NSToolbarItem.Identifier("bold")
-        static let italic = NSToolbarItem.Identifier("italic")
-        static let strikethrough = NSToolbarItem.Identifier("strikethrough")
-        static let heading = NSToolbarItem.Identifier("heading")
-        static let bulletList = NSToolbarItem.Identifier("bulletList")
-        static let numberedList = NSToolbarItem.Identifier("numberedList")
-        static let taskList = NSToolbarItem.Identifier("taskList")
-        static let quote = NSToolbarItem.Identifier("quote")
-        static let code = NSToolbarItem.Identifier("code")
-        static let link = NSToolbarItem.Identifier("link")
-        static let image = NSToolbarItem.Identifier("image")
-        static let table = NSToolbarItem.Identifier("table")
         static let export = NSToolbarItem.Identifier("export")
     }
 
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [ToolbarID.bold, ToolbarID.italic, ToolbarID.strikethrough, ToolbarID.heading, .space,
-         ToolbarID.bulletList, ToolbarID.numberedList, ToolbarID.taskList, ToolbarID.quote, .space,
-         ToolbarID.code, ToolbarID.link, ToolbarID.image, ToolbarID.table,
-         .flexibleSpace, ToolbarID.layout, ToolbarID.export]
+        [.toggleSidebar, .sidebarTrackingSeparator, .flexibleSpace, ToolbarID.layout, ToolbarID.export]
     }
 
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
@@ -651,47 +694,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSText
 
     func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier id: NSToolbarItem.Identifier,
                  willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
-        func button(_ label: String, _ symbol: String, _ action: Selector) -> NSToolbarItem {
-            let item = NSToolbarItem(itemIdentifier: id)
-            item.label = label
-            item.paletteLabel = label
-            item.toolTip = label
-            item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: label)
-            item.action = action
-            item.isBordered = true
-            return item
-        }
-
         switch id {
-        case ToolbarID.bold: return button("Bold", "bold", #selector(toggleBold(_:)))
-        case ToolbarID.italic: return button("Italic", "italic", #selector(toggleItalic(_:)))
-        case ToolbarID.strikethrough: return button("Strikethrough", "strikethrough", #selector(toggleStrikethrough(_:)))
-        case ToolbarID.bulletList: return button("Bulleted List", "list.bullet", #selector(toggleBulletList(_:)))
-        case ToolbarID.numberedList: return button("Numbered List", "list.number", #selector(toggleNumberedList(_:)))
-        case ToolbarID.taskList: return button("Task List", "checklist", #selector(toggleTaskList(_:)))
-        case ToolbarID.quote: return button("Quote", "text.quote", #selector(toggleQuote(_:)))
-        case ToolbarID.code: return button("Code", "chevron.left.forwardslash.chevron.right", #selector(toggleCode(_:)))
-        case ToolbarID.link: return button("Link", "link", #selector(insertLink(_:)))
-        case ToolbarID.image: return button("Image", "photo", #selector(insertImage(_:)))
-        case ToolbarID.table: return button("Table", "tablecells", #selector(insertTable(_:)))
-
-        case ToolbarID.heading:
-            let item = NSMenuToolbarItem(itemIdentifier: id)
-            item.label = "Heading"
-            item.paletteLabel = "Heading"
-            item.toolTip = "Heading"
-            item.image = NSImage(systemSymbolName: "textformat.size", accessibilityDescription: "Heading")
-            let menu = NSMenu()
-            for level in 1...6 {
-                let entry = menu.addItem(withTitle: "Heading \(level)", action: #selector(setHeading(_:)), keyEquivalent: "")
-                entry.tag = level
-            }
-            menu.addItem(.separator())
-            menu.addItem(withTitle: "Body Text", action: #selector(setHeading(_:)), keyEquivalent: "").tag = 0
-            item.menu = menu
-            item.showsIndicator = true
-            return item
-
         case ToolbarID.export:
             let item = NSMenuToolbarItem(itemIdentifier: id)
             item.label = "Export"

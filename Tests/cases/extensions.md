@@ -12,7 +12,7 @@ $$
 a^2 + b^2 = c^2
 ```
 
-- [ ] ## Intro
+## Intro
 
 A ==highlighted== phrase and a footnote[^note] plus another[^2].
 

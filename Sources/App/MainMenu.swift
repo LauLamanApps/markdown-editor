@@ -27,6 +27,7 @@ enum MainMenu {
         let file = submenu(of: main, title: "File")
         file.addItem(withTitle: "New", action: #selector(NSDocumentController.newDocument(_:)), keyEquivalent: "n")
         file.addItem(withTitle: "Open…", action: #selector(NSDocumentController.openDocument(_:)), keyEquivalent: "o")
+        file.addItem(withTitle: "Open Folder…", action: #selector(EditorWindowController.openFolder(_:)), keyEquivalent: "O")
         let recent = file.addItem(withTitle: "Open Recent", action: nil, keyEquivalent: "")
         let recentMenu = NSMenu(title: "Open Recent")
         recentMenu.addItem(withTitle: "Clear Menu", action: #selector(NSDocumentController.clearRecentDocuments(_:)), keyEquivalent: "")
@@ -105,6 +106,9 @@ enum MainMenu {
 
         // View
         let view = submenu(of: main, title: "View")
+        view.addItem(withTitle: "Toggle Sidebar", action: #selector(NSSplitViewController.toggleSidebar(_:)), keyEquivalent: "s")
+            .keyEquivalentModifierMask = [.command, .control]
+        view.addItem(.separator())
         let modes: [(String, String)] = [("Editor Only", "1"), ("Editor and Preview", "2"), ("Preview Only", "3")]
         for (index, (title, key)) in modes.enumerated() {
             let item = view.addItem(withTitle: title, action: #selector(EditorWindowController.setLayout(_:)), keyEquivalent: key)
