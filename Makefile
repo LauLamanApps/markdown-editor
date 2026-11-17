@@ -1,7 +1,7 @@
 # Builds the Quick Look extension with the Command Line Tools only — no Xcode project needed.
 
 VERSION     ?= 1.0.0
-BUNDLE_ID   ?= io.github.laulaman.MarkdownPreview
+BUNDLE_ID   ?= nl.LauLamanApps.MarkdownPreview
 MIN_MACOS   ?= 12.0
 ARCHS       ?= $(shell uname -m)
 INSTALL_DIR ?= /Applications

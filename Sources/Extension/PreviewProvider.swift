@@ -3,7 +3,7 @@ import QuickLookUI
 import UniformTypeIdentifiers
 import os
 
-private let log = Logger(subsystem: "io.github.laulaman.MarkdownPreview", category: "preview")
+private let log = Logger(subsystem: "nl.LauLamanApps.MarkdownPreview", category: "preview")
 
 /// Data-based Quick Look preview: renders the Markdown file to HTML and hands
 /// it to Quick Look, which displays it in its own web view.

@@ -64,7 +64,7 @@ make release    # zip for distribution (pass ARCHS="arm64 x86_64" for universal;
 
 After changing a snapshot on purpose, regenerate it with `UPDATE=1 make test`.
 
-Extension logs: `log stream --predicate 'subsystem == "io.github.laulaman.MarkdownPreview"' --info`
+Extension logs: `log stream --predicate 'subsystem == "nl.LauLamanApps.MarkdownPreview"' --info`
 
 ### Layout
 
