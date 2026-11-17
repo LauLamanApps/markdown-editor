@@ -11,20 +11,19 @@ enum ImageInliner {
     private static var cache: [String: (modified: Date, uri: String)] = [:]
     private static let lock = NSLock()
 
-    static func dataURI(for src: String, relativeTo base: URL) -> String? {
+    /// The local file an image `src` refers to, or nil for remote and data: sources.
+    static func localFile(for src: String, relativeTo base: URL) -> URL? {
         let lower = src.lowercased()
         if lower.hasPrefix("http:") || lower.hasPrefix("https:") || lower.hasPrefix("data:") { return nil }
+        if lower.hasPrefix("file://") { return URL(string: src) }
+        let path = (src.removingPercentEncoding ?? src).components(separatedBy: CharacterSet(charactersIn: "?#"))[0]
+        return path.hasPrefix("/")
+            ? URL(fileURLWithPath: path)
+            : base.appendingPathComponent(path).standardizedFileURL
+    }
 
-        let fileURL: URL
-        if lower.hasPrefix("file://") {
-            guard let u = URL(string: src) else { return nil }
-            fileURL = u
-        } else {
-            let path = (src.removingPercentEncoding ?? src).components(separatedBy: CharacterSet(charactersIn: "?#"))[0]
-            fileURL = path.hasPrefix("/")
-                ? URL(fileURLWithPath: path)
-                : base.appendingPathComponent(path).standardizedFileURL
-        }
+    static func dataURI(for src: String, relativeTo base: URL) -> String? {
+        guard let fileURL = localFile(for: src, relativeTo: base) else { return nil }
 
         guard let attrs = try? FileManager.default.attributesOfItem(atPath: fileURL.path),
               let size = attrs[.size] as? Int, size <= maxBytes else { return nil }
