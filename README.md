@@ -33,7 +33,7 @@ Requires macOS 14 Sonoma or later on Apple silicon.
 ## Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/LauLaman/markdown-preview/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/LauLamanApps/markdown-preview/main/install.sh | bash
 ```
 
 This downloads the source, builds it on your Mac and installs `MarkdownPreview.app` into `/Applications` (or `~/Applications` if `/Applications` isn't writable). Because it is built locally, Gatekeeper doesn't block it. The only requirement is the Xcode Command Line Tools; the script offers to install them if they're missing.
@@ -41,14 +41,14 @@ This downloads the source, builds it on your Mac and installs `MarkdownPreview.a
 ### From source
 
 ```bash
-git clone https://github.com/LauLaman/markdown-preview.git
+git clone https://github.com/LauLamanApps/markdown-preview.git
 cd markdown-preview
 make install
 ```
 
 ### Prebuilt download
 
-Every [release](https://github.com/LauLaman/markdown-preview/releases) has a `MarkdownPreview-x.y.z.zip`. The build isn't notarized, so after unzipping, clear the quarantine flag before opening it:
+Every [release](https://github.com/LauLamanApps/markdown-preview/releases) has a `MarkdownPreview-x.y.z.zip`. The build isn't notarized, so after unzipping, clear the quarantine flag before opening it:
 
 ```bash
 xattr -dr com.apple.quarantine MarkdownPreview.app
