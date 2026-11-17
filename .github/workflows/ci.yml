@@ -1,0 +1,16 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Snapshot tests
+        run: make test
+      - name: Build app (universal)
+        run: make app ARCHS="arm64 x86_64"
