@@ -29,7 +29,7 @@ app: $(APP)
 
 WEB_FILES  = $(shell find Resources/Web -type f)
 
-$(APP): $(EXT_SRC) $(APP_SRC) $(WEB_FILES) Resources/Icons/*.icns Resources/*.plist Resources/*.entitlements Makefile
+$(APP): $(EXT_SRC) $(APP_SRC) $(WEB_FILES) Resources/Icons/*.icns Resources/*.plist Resources/*.entitlements LICENSE Makefile
 	@rm -rf $(APP)
 	@mkdir -p $(APP)/Contents/MacOS $(APPEX)/Contents/MacOS $(BUILD)/obj
 	@for arch in $(ARCHS); do \
@@ -50,6 +50,7 @@ $(APP): $(EXT_SRC) $(APP_SRC) $(WEB_FILES) Resources/Icons/*.icns Resources/*.pl
 	@cp -R Resources/Web $(APP)/Contents/Resources/
 	@cp -R Resources/Web/base.css Resources/Web/themes $(APPEX)/Contents/Resources/Web/
 	@cp -R ThirdPartyLicenses $(APP)/Contents/Resources/
+	@cp LICENSE $(APP)/Contents/Resources/LICENSE.txt
 	@cp Resources/Icons/AppIcon.icns Resources/Icons/MarkdownDocument.icns $(APP)/Contents/Resources/
 	@sed -e 's/__BUNDLE_ID__/$(BUNDLE_ID)/g' -e 's/__VERSION__/$(VERSION)/g' Resources/Extension-Info.plist > $(APPEX)/Contents/Info.plist
 	@sed -e 's/__BUNDLE_ID__/$(BUNDLE_ID)/g' -e 's/__VERSION__/$(VERSION)/g' Resources/App-Info.plist > $(APP)/Contents/Info.plist

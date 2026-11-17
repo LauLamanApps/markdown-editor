@@ -8,6 +8,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.mainMenu = MainMenu.build()
     }
 
+    @objc func showAbout(_ sender: Any?) {
+        AboutWindowController.shared.show()
+    }
+
     @objc func showSettings(_ sender: Any?) {
         SettingsWindowController.shared.show()
     }

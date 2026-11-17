@@ -1,10 +1,10 @@
 #!/bin/bash
 # Installs Markdown Editor (Quick Look extension) by building it from source.
-#   curl -fsSL https://raw.githubusercontent.com/LauLamanApps/markdown-preview/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/LauLamanApps/markdown-editor/main/install.sh | bash
 # Building locally means no Gatekeeper warnings and no Apple Developer account needed.
 set -euo pipefail
 
-REPO="LauLamanApps/markdown-preview"
+REPO="LauLamanApps/markdown-editor"
 REF="${MARKDOWN_PREVIEW_REF:-main}"
 
 if [[ "$(uname)" != "Darwin" ]]; then
