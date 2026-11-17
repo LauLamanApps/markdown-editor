@@ -52,9 +52,13 @@ install: app
 	@mkdir -p "$(INSTALL_DIR)"
 	@rm -rf "$(INSTALL_DIR)/$(APP_NAME).app"
 	@cp -R $(APP) "$(INSTALL_DIR)/"
+	@# Keep only the installed copy registered, so Quick Look can't pick the build folder one
+	@$(LSREGISTER) -u $(APP) 2>/dev/null || true
 	@$(LSREGISTER) -f -R "$(INSTALL_DIR)/$(APP_NAME).app"
 	@pluginkit -a "$(INSTALL_DIR)/$(APP_NAME).app/Contents/PlugIns/$(APP_NAME)Extension.appex"
 	@pluginkit -e use -i $(BUNDLE_ID).QuickLook
+	@# Running Quick Look processes keep the previous build loaded until restarted
+	@killall $(APP_NAME)Extension QuickLookUIService 2>/dev/null; true
 	@qlmanage -r >/dev/null 2>&1; qlmanage -r cache >/dev/null 2>&1; true
 	@echo "✓ installed. Select a .md file in Finder and press Space."
 
@@ -62,6 +66,7 @@ uninstall:
 	@pluginkit -r "$(INSTALL_DIR)/$(APP_NAME).app/Contents/PlugIns/$(APP_NAME)Extension.appex" 2>/dev/null || true
 	@$(LSREGISTER) -u "$(INSTALL_DIR)/$(APP_NAME).app" 2>/dev/null || true
 	@rm -rf "$(INSTALL_DIR)/$(APP_NAME).app"
+	@killall $(APP_NAME)Extension QuickLookUIService 2>/dev/null; true
 	@qlmanage -r >/dev/null 2>&1; true
 	@echo "✓ removed $(INSTALL_DIR)/$(APP_NAME).app"
 
