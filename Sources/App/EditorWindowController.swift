@@ -58,7 +58,8 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSText
         previewVC.view = webView
         sidebarItem = NSSplitViewItem(sidebarWithViewController: fileTree)
         sidebarItem.minimumThickness = 160
-        sidebarItem.maximumThickness = 420
+        sidebarItem.maximumThickness = 360
+        sidebarItem.preferredThicknessFraction = 0.18
         sidebarItem.canCollapse = true
         sidebarItem.collapseBehavior = .preferResizingSiblingsWithFixedSplitView
         editorItem = NSSplitViewItem(viewController: editorVC)
@@ -494,8 +495,16 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSText
     }
 
     private func apply(_ layout: Layout, focus: Bool) {
-        editorItem.isCollapsed = layout == .preview
-        previewItem.isCollapsed = layout == .editor
+        // Show the incoming pane before hiding the outgoing one: swapping both in one
+        // go makes AppKit size the window around the incoming pane's remembered width.
+        let frame = window?.frame
+        if layout != .preview { editorItem.isCollapsed = false }
+        if layout != .editor { previewItem.isCollapsed = false }
+        if layout == .preview { editorItem.isCollapsed = true }
+        if layout == .editor { previewItem.isCollapsed = true }
+        if let frame, let window, window.frame != frame, !window.styleMask.contains(.fullScreen) {
+            window.setFrame(frame, display: true)
+        }
         layoutGroup?.selectedIndex = layout.rawValue
         if focus { window?.makeFirstResponder(layout == .preview ? webView : textView) }
         if layout == .split { syncPreviewScroll() }
