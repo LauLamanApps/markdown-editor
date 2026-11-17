@@ -60,11 +60,14 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSText
         sidebarItem.minimumThickness = 160
         sidebarItem.maximumThickness = 420
         sidebarItem.canCollapse = true
+        sidebarItem.collapseBehavior = .preferResizingSiblingsWithFixedSplitView
         editorItem = NSSplitViewItem(viewController: editorVC)
         previewItem = NSSplitViewItem(viewController: previewVC)
         for item in [editorItem!, previewItem!] {
             item.canCollapse = true
             item.minimumThickness = 260
+            // Switching layouts resizes the other pane, never the window
+            item.collapseBehavior = .preferResizingSiblingsWithFixedSplitView
         }
         split.addSplitViewItem(sidebarItem)
         split.addSplitViewItem(editorItem)
