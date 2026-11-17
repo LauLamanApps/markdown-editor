@@ -5,13 +5,22 @@ BUNDLE_ID   ?= nl.LauLamanApps.MarkdownPreview
 MIN_MACOS   ?= 14.0
 ARCHS       ?= arm64
 INSTALL_DIR ?= /Applications
+# "-" signs ad hoc. For a release, use your "Developer ID Application" identity
+# and either a notarytool keychain profile or an App Store Connect API key.
 SIGN_ID     ?= -
+NOTARY_PROFILE ?=
+NOTARY_KEY     ?=
+NOTARY_KEY_ID  ?=
+NOTARY_ISSUER  ?=
 
 APP_NAME  = MarkdownEditor
 LEGACY_NAME = MarkdownPreview
 BUILD     = build
 APP       = $(BUILD)/$(APP_NAME).app
 APPEX     = $(APP)/Contents/PlugIns/$(APP_NAME)Extension.appex
+ZIP       = $(BUILD)/$(APP_NAME)-$(VERSION).zip
+TIMESTAMP = $(if $(filter -,$(SIGN_ID)),,--timestamp)
+NOTARY_AUTH = $(if $(NOTARY_PROFILE),--keychain-profile "$(NOTARY_PROFILE)",--key "$(NOTARY_KEY)" --key-id "$(NOTARY_KEY_ID)" --issuer "$(NOTARY_ISSUER)")
 LSREGISTER = /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
 
 SHARED_SRC = $(wildcard Sources/Shared/*.swift)
@@ -54,8 +63,8 @@ $(APP): $(EXT_SRC) $(APP_SRC) $(WEB_FILES) Resources/Icons/*.icns Resources/*.pl
 	@cp Resources/Icons/AppIcon.icns Resources/Icons/MarkdownDocument.icns $(APP)/Contents/Resources/
 	@sed -e 's/__BUNDLE_ID__/$(BUNDLE_ID)/g' -e 's/__VERSION__/$(VERSION)/g' Resources/Extension-Info.plist > $(APPEX)/Contents/Info.plist
 	@sed -e 's/__BUNDLE_ID__/$(BUNDLE_ID)/g' -e 's/__VERSION__/$(VERSION)/g' Resources/App-Info.plist > $(APP)/Contents/Info.plist
-	@codesign --force --sign "$(SIGN_ID)" --options runtime --entitlements Resources/Extension.entitlements $(APPEX)
-	@codesign --force --sign "$(SIGN_ID)" --options runtime --entitlements Resources/App.entitlements $(APP)
+	@codesign --force --sign "$(SIGN_ID)" $(TIMESTAMP) --options runtime --entitlements Resources/Extension.entitlements $(APPEX)
+	@codesign --force --sign "$(SIGN_ID)" $(TIMESTAMP) --options runtime --entitlements Resources/App.entitlements $(APP)
 	@echo "✓ built $(APP)"
 
 install: app
@@ -106,8 +115,18 @@ test: $(BUILD)/md2html $(BUILD)/preview-check $(BUILD)/editor-check
 	@$(BUILD)/preview-check Tests/cases/extensions.md
 
 release: clean app
-	@cd $(BUILD) && ditto -c -k --keepParent $(APP_NAME).app $(APP_NAME)-$(VERSION).zip
-	@shasum -a 256 $(BUILD)/$(APP_NAME)-$(VERSION).zip
+	@cd $(BUILD) && ditto -c -k --keepParent $(APP_NAME).app $(notdir $(ZIP))
+ifneq ($(SIGN_ID),-)
+	@echo "→ notarizing (takes a few minutes)"
+	@xcrun notarytool submit $(ZIP) $(NOTARY_AUTH) --wait
+	@# Staple the ticket so the app opens without a network check, then zip again
+	@xcrun stapler staple $(APP)
+	@rm $(ZIP) && cd $(BUILD) && ditto -c -k --keepParent $(APP_NAME).app $(notdir $(ZIP))
+	@spctl --assess --type execute --verbose $(APP)
+else
+	@echo "! signed ad hoc: Gatekeeper blocks this zip after download"
+endif
+	@shasum -a 256 $(ZIP)
 
 # Regenerates Resources/Icons from Tools/make-icons.swift
 icons:
