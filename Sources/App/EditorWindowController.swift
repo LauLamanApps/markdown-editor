@@ -40,7 +40,8 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSText
                               backing: .buffered, defer: false)
         window.minSize = NSSize(width: 520, height: 320)
         window.tabbingMode = .preferred
-        window.toolbarStyle = .unified
+        // Title on its own row, so the toolbar starts at the leading edge
+        window.toolbarStyle = .expanded
         super.init(window: window)
 
         buildEditor(text)
