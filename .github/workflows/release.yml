@@ -20,5 +20,5 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" build/MarkdownPreview-*.zip \
+          gh release create "$GITHUB_REF_NAME" build/MarkdownEditor-*.zip \
             --title "$GITHUB_REF_NAME" --generate-notes

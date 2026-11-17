@@ -1,5 +1,5 @@
 #!/bin/bash
-# Installs Markdown Preview (Quick Look extension) by building it from source.
+# Installs Markdown Editor (Quick Look extension) by building it from source.
 #   curl -fsSL https://raw.githubusercontent.com/LauLamanApps/markdown-preview/main/install.sh | bash
 # Building locally means no Gatekeeper warnings and no Apple Developer account needed.
 set -euo pipefail

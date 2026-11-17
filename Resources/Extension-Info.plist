@@ -5,15 +5,15 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-	<string>Markdown Preview</string>
+	<string>Markdown Editor</string>
 	<key>CFBundleExecutable</key>
-	<string>MarkdownPreviewExtension</string>
+	<string>MarkdownEditorExtension</string>
 	<key>CFBundleIdentifier</key>
 	<string>__BUNDLE_ID__.QuickLook</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>Markdown Preview</string>
+	<string>Markdown Editor</string>
 	<key>CFBundlePackageType</key>
 	<string>XPC!</string>
 	<key>CFBundleShortVersionString</key>
@@ -44,7 +44,7 @@
 		<key>NSExtensionPointIdentifier</key>
 		<string>com.apple.quicklook.preview</string>
 		<key>NSExtensionPrincipalClass</key>
-		<string>MarkdownPreviewExtension.PreviewProvider</string>
+		<string>MarkdownEditorExtension.PreviewProvider</string>
 	</dict>
 </dict>
 </plist>

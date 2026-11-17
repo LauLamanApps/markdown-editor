@@ -4,7 +4,7 @@ import Cocoa
 enum MainMenu {
     static func build() -> NSMenu {
         let main = NSMenu()
-        let appName = "Markdown Preview"
+        let appName = "Markdown Editor"
 
         // App
         let appMenu = submenu(of: main, title: appName)

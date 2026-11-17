@@ -1,6 +1,6 @@
-<img src="Resources/Icons/AppIcon.png" width="128" alt="Markdown Preview icon">
+<img src="Resources/Icons/AppIcon.png" width="128" alt="Markdown Editor icon">
 
-# Markdown Preview
+# Markdown Editor
 
 A native Markdown editor for macOS with a live preview, plus a Quick Look extension: select a Markdown file in Finder, press **Space**, and see it rendered instead of raw text.
 
@@ -38,7 +38,7 @@ Requires macOS 14 Sonoma or later on Apple silicon.
 curl -fsSL https://raw.githubusercontent.com/LauLamanApps/markdown-preview/main/install.sh | bash
 ```
 
-This downloads the source, builds it on your Mac and installs `MarkdownPreview.app` into `/Applications` (or `~/Applications` if `/Applications` isn't writable). Because it is built locally, Gatekeeper doesn't block it. The only requirement is the Xcode Command Line Tools; the script offers to install them if they're missing.
+This downloads the source, builds it on your Mac and installs `MarkdownEditor.app` into `/Applications` (or `~/Applications` if `/Applications` isn't writable). Because it is built locally, Gatekeeper doesn't block it. The only requirement is the Xcode Command Line Tools; the script offers to install them if they're missing.
 
 ### From source
 
@@ -50,16 +50,16 @@ make install
 
 ### Prebuilt download
 
-Every [release](https://github.com/LauLamanApps/markdown-preview/releases) has a `MarkdownPreview-x.y.z.zip`. The build isn't notarized, so after unzipping, clear the quarantine flag before opening it:
+Every [release](https://github.com/LauLamanApps/markdown-preview/releases) has a `MarkdownEditor-x.y.z.zip`. The build isn't notarized, so after unzipping, clear the quarantine flag before opening it:
 
 ```bash
-xattr -dr com.apple.quarantine MarkdownPreview.app
-mv MarkdownPreview.app /Applications/ && open /Applications/MarkdownPreview.app
+xattr -dr com.apple.quarantine MarkdownEditor.app
+mv MarkdownEditor.app /Applications/ && open /Applications/MarkdownEditor.app
 ```
 
 ## Usage
 
-- **Edit:** open a file with **File → Open**, drag it onto the app, or use **Open With → Markdown Preview** in Finder. To make it the default, choose **Get Info → Open with → Markdown Preview → Change All**.
+- **Edit:** open a file with **File → Open**, drag it onto the app, or use **Open With → Markdown Editor** in Finder. To make it the default, choose **Get Info → Open with → Markdown Editor → Change All**.
 - **Layout:** ⌘1 editor only, ⌘2 side by side, ⌘3 preview only.
 - **Settings** (⌘,): editor theme and font, typing behaviour, preview theme and appearance, Markdown extensions.
 - **Quick Look:** select a `.md` file in Finder and press Space.
@@ -80,7 +80,7 @@ mv MarkdownPreview.app /Applications/ && open /Applications/MarkdownPreview.app
 
 ### Quick Look still shows plain text?
 
-1. Open **System Settings → General → Login Items & Extensions → Quick Look** and make sure **Markdown Preview** is enabled.
+1. Open **System Settings → General → Login Items & Extensions → Quick Look** and make sure **Markdown Editor** is enabled.
 2. Reset Quick Look: `qlmanage -r && qlmanage -r cache`, then relaunch Finder (⌥-right-click the Finder icon → Relaunch).
 3. Another app might have claimed `.md` previews. Turn its extension off in the same settings pane.
 
@@ -89,7 +89,7 @@ mv MarkdownPreview.app /Applications/ && open /Applications/MarkdownPreview.app
 ```bash
 make uninstall          # from a clone
 # or
-rm -rf /Applications/MarkdownPreview.app && qlmanage -r
+rm -rf /Applications/MarkdownEditor.app && qlmanage -r
 ```
 
 ## Development
@@ -97,7 +97,7 @@ rm -rf /Applications/MarkdownPreview.app && qlmanage -r
 Everything builds with the Command Line Tools — there is no Xcode project.
 
 ```bash
-make app        # build build/MarkdownPreview.app
+make app        # build build/MarkdownEditor.app
 make install    # build, copy to /Applications and register the extension
 make test       # renderer snapshot tests + a headless check that the preview scripts render
 make release    # zip for distribution
