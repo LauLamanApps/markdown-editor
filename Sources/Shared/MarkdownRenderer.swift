@@ -409,7 +409,7 @@ public struct MarkdownRenderer {
             // HTML block
             if paragraph.isEmpty, line.leadingSpaces < 4, Self.isHTMLBlockStart(trimmed) {
                 while i < lines.count, !lines[i].trimmingCharacters(in: .whitespaces).isEmpty {
-                    html += lines[i] + "\n"
+                    html += rawHTML(lines[i]) + "\n"
                     i += 1
                 }
                 continue
@@ -772,7 +772,7 @@ public struct MarkdownRenderer {
                         i = end + 1; continue
                     }
                     if Self.matches(inner, #"^(/?[a-zA-Z][a-zA-Z0-9-]*(\s[^<>]*)?/?|!--[\s\S]*--)$"#) {
-                        out += "<" + inner + ">"
+                        out += rawHTML("<" + inner + ">")
                         i = end + 1; continue
                     }
                 }
@@ -1075,6 +1075,28 @@ public struct MarkdownRenderer {
     }
 
     // MARK: - Utilities
+
+    private static let imgSource = try! NSRegularExpression(
+        pattern: #"(<img\b[^>]*?\bsrc\s*=\s*)(?:"([^"]*)"|'([^']*)')"#, options: [.caseInsensitive])
+
+    /// Raw HTML is passed through, except that `<img src>` goes through the image
+    /// resolver like Markdown images do, so local images show in the previews.
+    private func rawHTML(_ html: String) -> String {
+        guard let imageResolver, html.range(of: "<img", options: .caseInsensitive) != nil else { return html }
+        let ns = html as NSString
+        var out = ""
+        var last = 0
+        for m in Self.imgSource.matches(in: html, range: NSRange(location: 0, length: ns.length)) {
+            let group = m.range(at: 2).location != NSNotFound ? 2 : 3
+            let src = ns.substring(with: m.range(at: group))
+            out += ns.substring(with: NSRange(location: last, length: m.range.location - last))
+            out += ns.substring(with: m.range(at: 1))
+            let decoded = src.replacingOccurrences(of: "&amp;", with: "&")
+            out += "\"" + escapeAttr(imageResolver(decoded) ?? decoded) + "\""
+            last = NSMaxRange(m.range)
+        }
+        return out + ns.substring(from: last)
+    }
 
     private func unescapeBackslashes(_ s: String) -> String {
         var out = ""

@@ -7,7 +7,7 @@ dir="$(cd "$(dirname "$0")" && pwd)/cases"
 fail=0
 for md in "$dir"/*.md; do
     expected="${md%.md}.html"
-    actual="$("$bin" --fragment "$md")"
+    actual="$("$bin" --fragment --mark-images "$md")"
     if [ "${UPDATE:-0}" = 1 ]; then
         printf '%s' "$actual" > "$expected"
         echo "updated $(basename "$expected")"
