@@ -1,0 +1,82 @@
+/* Layout and element styles shared by all preview themes.
+   Themes (themes/*.css) only set the variables and fonts used here. */
+
+html { background: var(--bg); }
+body {
+  margin: 0; padding: 32px 40px; color: var(--fg); background: var(--bg);
+  font: var(--font-size, 16px)/var(--line-height, 1.6) var(--font-body);
+  -webkit-font-smoothing: antialiased; word-wrap: break-word;
+}
+.markdown-body { max-width: var(--max-width, 860px); margin: 0 auto; }
+.markdown-body > *:first-child { margin-top: 0 !important; }
+
+h1, h2, h3, h4, h5, h6 { margin: 1.5em 0 .7em; font-family: var(--font-heading); font-weight: var(--heading-weight, 600); line-height: 1.25; color: var(--heading, var(--fg)); }
+h1 { font-size: 2em; } h2 { font-size: 1.5em; } h3 { font-size: 1.25em; } h4 { font-size: 1em; } h5 { font-size: .875em; }
+h6 { font-size: .85em; color: var(--muted); }
+h1, h2 { padding-bottom: .3em; border-bottom: var(--heading-rule, 1px solid var(--border)); }
+
+p, blockquote, ul, ol, dl, table, pre, details, .alert, .math-display, nav.toc { margin: 0 0 16px; }
+a { color: var(--link); text-decoration: none; } a:hover { text-decoration: underline; }
+hr { height: 2px; padding: 0; margin: 24px 0; background: var(--border); border: 0; border-radius: 1px; }
+blockquote { padding: 0 1em; color: var(--quote); border-left: .25em solid var(--quote-border, var(--border)); }
+blockquote > :last-child, .alert > :last-child { margin-bottom: 0; }
+mark { background: var(--mark-bg); color: inherit; padding: 0 .15em; border-radius: 3px; }
+
+ul, ol { padding-left: 2em; } li + li { margin-top: .25em; } li > p { margin-top: 16px; }
+ul ul, ul ol, ol ol, ol ul { margin-bottom: 0; }
+.task-list-item { list-style: none; } .task-list-item input { margin: 0 .3em .2em -1.4em; vertical-align: middle; }
+
+code, pre, kbd { font-family: var(--font-mono); }
+code { font-size: 85%; padding: .2em .4em; background: var(--code-bg); border-radius: 6px; }
+pre { font-size: 85%; padding: 16px; overflow: auto; line-height: 1.45; background: var(--code-bg); border-radius: 8px; border: var(--code-border, 0); }
+pre code { padding: 0; background: transparent; font-size: 100%; white-space: pre; border-radius: 0; }
+pre.front-matter { border: 1px dashed var(--border); color: var(--muted); }
+kbd { padding: 3px 5px; font-size: 11px; border: 1px solid var(--border); border-radius: 6px; background: var(--code-bg); }
+
+table { border-spacing: 0; border-collapse: collapse; display: block; width: max-content; max-width: 100%; overflow: auto; }
+th, td { padding: 6px 13px; border: 1px solid var(--border); }
+th { font-weight: 600; } tr:nth-child(2n) { background: var(--row-alt); }
+table.front-matter { font-size: 90%; color: var(--muted); }
+table.front-matter th { text-align: left; }
+img { max-width: 100%; box-sizing: border-box; }
+
+.alert { padding: 8px 16px; border-left: .25em solid var(--alert); }
+.alert-title { font-weight: 600; color: var(--alert); margin-bottom: 4px; }
+.alert-note { --alert: var(--note); } .alert-tip { --alert: var(--tip); }
+.alert-important { --alert: var(--important); } .alert-warning { --alert: var(--warning); }
+.alert-caution { --alert: var(--caution); }
+
+nav.toc { padding: 12px 16px; background: var(--code-bg); border-radius: 8px; }
+nav.toc ul { margin: 0; padding-left: 1.2em; list-style: none; }
+nav.toc > ul { padding-left: 0; }
+.footnotes { margin-top: 32px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 85%; color: var(--muted); }
+.footnote-ref a { padding: 0 .1em; }
+.footnote-backref { font-family: var(--font-body); }
+
+/* Math and diagrams: raw source until KaTeX / Mermaid render them (Quick Look shows the source) */
+.math-display { display: block; overflow-x: auto; text-align: center; }
+.math:not(.rendered) { font-family: var(--font-mono); font-size: 85%; color: var(--muted); }
+.math-display:not(.rendered) { white-space: pre-wrap; text-align: left; padding: 12px 16px; background: var(--code-bg); border-radius: 8px; }
+pre.mermaid { background: transparent; text-align: center; font-family: var(--font-body); }
+pre.mermaid:not([data-processed]) { background: var(--code-bg); text-align: left; font-family: var(--font-mono); color: var(--muted); }
+
+/* Prism tokens */
+.token.comment, .token.prolog, .token.doctype, .token.cdata { color: var(--tok-comment); font-style: italic; }
+.token.punctuation { color: var(--tok-punct, var(--fg)); }
+.token.keyword, .token.atrule, .token.important, .token.rule, .token.selector { color: var(--tok-keyword); }
+.token.string, .token.char, .token.attr-value, .token.regex, .token.template-string, .token.url { color: var(--tok-string); }
+.token.number, .token.boolean, .token.constant, .token.symbol { color: var(--tok-number); }
+.token.function, .token.function-variable { color: var(--tok-function); }
+.token.class-name, .token.builtin, .token.namespace { color: var(--tok-type); }
+.token.tag { color: var(--tok-tag, var(--tok-keyword)); }
+.token.attr-name, .token.property { color: var(--tok-attr, var(--tok-type)); }
+.token.operator, .token.entity { color: var(--tok-operator, var(--fg)); }
+.token.variable, .token.parameter { color: var(--tok-variable, var(--fg)); }
+.token.inserted { color: var(--tip); } .token.deleted { color: var(--caution); }
+.token.bold { font-weight: bold; } .token.italic { font-style: italic; }
+
+@media print {
+  body { padding: 0; }
+  pre, blockquote, table, img, .math-display, pre.mermaid { break-inside: avoid; }
+  h1, h2, h3, h4 { break-after: avoid; }
+}

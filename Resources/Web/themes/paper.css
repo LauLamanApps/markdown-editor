@@ -1,0 +1,22 @@
+/* Paper — serif body text on warm paper, made for reading long documents */
+:root {
+  --font-body: ui-serif, "New York", Charter, Georgia, serif;
+  --font-heading: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-size: 18px; --line-height: 1.7; --max-width: 720px; --heading-weight: 650;
+  --heading-rule: 0;
+  --fg: #2f2a24; --muted: #7a7064; --bg: #fbf8f1; --border: #e3dccd; --heading: #1f1b16;
+  --code-bg: #f2ede2; --link: #9c4221; --quote: #6d6357; --quote-border: #c9bda6; --row-alt: #f5f1e7; --mark-bg: #f6e3a4;
+  --note: #2c5f8a; --tip: #4a7a37; --important: #6f4a9e; --warning: #9c6b12; --caution: #a83a2c;
+  --tok-comment: #9a8f80; --tok-keyword: #8f3f71; --tok-string: #5f7a2c; --tok-number: #b05d1c;
+  --tok-function: #2c5f8a; --tok-type: #9c6b12; --tok-tag: #a83a2c; --tok-attr: #9c6b12; --tok-operator: #4f6d6d;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fg: #e0d9cc; --muted: #a39a8b; --bg: #1d1b18; --border: #3a3630; --heading: #f2ece0;
+    --code-bg: #27241f; --link: #e09f6e; --quote: #b0a796; --quote-border: #5a5348; --row-alt: #23211d; --mark-bg: #6a5622;
+    --note: #7fb0d8; --tip: #9ac27f; --important: #c3a6e8; --warning: #e0b35c; --caution: #e88576;
+    --tok-comment: #7d7466; --tok-keyword: #d3869b; --tok-string: #b8bb26; --tok-number: #fe8019;
+    --tok-function: #83a598; --tok-type: #fabd2f; --tok-tag: #fb4934; --tok-attr: #fabd2f; --tok-operator: #8ec07c;
+  }
+}

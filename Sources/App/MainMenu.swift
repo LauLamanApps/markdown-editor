@@ -10,6 +10,8 @@ enum MainMenu {
         let appMenu = submenu(of: main, title: appName)
         appMenu.addItem(withTitle: "About \(appName)", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
         appMenu.addItem(.separator())
+        appMenu.addItem(withTitle: "Settings…", action: #selector(AppDelegate.showSettings(_:)), keyEquivalent: ",")
+        appMenu.addItem(.separator())
         let services = appMenu.addItem(withTitle: "Services", action: nil, keyEquivalent: "")
         services.submenu = NSMenu()
         NSApp.servicesMenu = services.submenu
@@ -39,8 +41,9 @@ enum MainMenu {
         file.addItem(withTitle: "Move To…", action: #selector(NSDocument.move(_:)), keyEquivalent: "")
         file.addItem(withTitle: "Revert To", action: #selector(NSDocument.revertToSaved(_:)), keyEquivalent: "")
         file.addItem(.separator())
-        file.addItem(withTitle: "Export as HTML…", action: #selector(MarkdownDocument.exportHTML(_:)), keyEquivalent: "e")
+        file.addItem(withTitle: "Export as HTML…", action: #selector(EditorWindowController.exportHTML(_:)), keyEquivalent: "e")
             .keyEquivalentModifierMask = [.command, .shift]
+        file.addItem(withTitle: "Export as PDF…", action: #selector(EditorWindowController.exportPDF(_:)), keyEquivalent: "")
         file.addItem(withTitle: "Print…", action: #selector(EditorWindowController.printPreview(_:)), keyEquivalent: "p")
 
         // Edit
@@ -52,6 +55,8 @@ enum MainMenu {
         edit.addItem(withTitle: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
         edit.addItem(withTitle: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
         edit.addItem(withTitle: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+        edit.addItem(withTitle: "Copy HTML", action: #selector(EditorWindowController.copyHTML(_:)), keyEquivalent: "c")
+            .keyEquivalentModifierMask = [.command, .option]
         edit.addItem(.separator())
         let find = edit.addItem(withTitle: "Find", action: nil, keyEquivalent: "")
         let findMenu = NSMenu(title: "Find")
@@ -68,9 +73,16 @@ enum MainMenu {
         format.addItem(withTitle: "Italic", action: #selector(EditorWindowController.toggleItalic(_:)), keyEquivalent: "i")
         format.addItem(withTitle: "Strikethrough", action: #selector(EditorWindowController.toggleStrikethrough(_:)), keyEquivalent: "x")
             .keyEquivalentModifierMask = [.command, .shift]
+        format.addItem(withTitle: "Highlight", action: #selector(EditorWindowController.toggleHighlight(_:)), keyEquivalent: "h")
+            .keyEquivalentModifierMask = [.command, .shift]
         format.addItem(withTitle: "Inline Code", action: #selector(EditorWindowController.toggleCode(_:)), keyEquivalent: "k")
             .keyEquivalentModifierMask = [.command, .shift]
+        format.addItem(.separator())
         format.addItem(withTitle: "Link", action: #selector(EditorWindowController.insertLink(_:)), keyEquivalent: "k")
+        format.addItem(withTitle: "Image…", action: #selector(EditorWindowController.insertImage(_:)), keyEquivalent: "i")
+            .keyEquivalentModifierMask = [.command, .shift]
+        format.addItem(withTitle: "Table", action: #selector(EditorWindowController.insertTable(_:)), keyEquivalent: "t")
+            .keyEquivalentModifierMask = [.command, .option]
         format.addItem(.separator())
         for level in 1...3 {
             let item = format.addItem(withTitle: "Heading \(level)", action: #selector(EditorWindowController.setHeading(_:)), keyEquivalent: "\(level)")
@@ -82,7 +94,14 @@ enum MainMenu {
         format.addItem(.separator())
         format.addItem(withTitle: "Bulleted List", action: #selector(EditorWindowController.toggleBulletList(_:)), keyEquivalent: "l")
             .keyEquivalentModifierMask = [.command, .shift]
+        format.addItem(withTitle: "Numbered List", action: #selector(EditorWindowController.toggleNumberedList(_:)), keyEquivalent: "l")
+            .keyEquivalentModifierMask = [.command, .option]
+        format.addItem(withTitle: "Task List", action: #selector(EditorWindowController.toggleTaskList(_:)), keyEquivalent: "l")
+            .keyEquivalentModifierMask = [.command, .option, .shift]
         format.addItem(withTitle: "Quote", action: #selector(EditorWindowController.toggleQuote(_:)), keyEquivalent: "'")
+        format.addItem(.separator())
+        format.addItem(withTitle: "Shift Right", action: #selector(EditorWindowController.indentLines(_:)), keyEquivalent: "]")
+        format.addItem(withTitle: "Shift Left", action: #selector(EditorWindowController.outdentLines(_:)), keyEquivalent: "[")
 
         // View
         let view = submenu(of: main, title: "View")

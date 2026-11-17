@@ -1,32 +1,30 @@
 import Cocoa
 
-/// Light syntax highlighting for the editor. Re-highlights the whole text on
-/// every edit, which is simple and correct for multi-line constructs (code
-/// fences) and fast enough for documents of normal size.
+/// Syntax highlighting for the editor. Re-highlights the whole text on every
+/// edit, which is simple and correct for multi-line constructs (code fences)
+/// and fast enough for documents of normal size.
 final class MarkdownHighlighter: NSObject, NSTextStorageDelegate {
-    var fontSize: CGFloat { didSet { makeFonts() } }
-
     private(set) var baseFont = NSFont.monospacedSystemFont(ofSize: 14, weight: .regular)
     private var boldFont = NSFont.monospacedSystemFont(ofSize: 14, weight: .bold)
     private var italicFont = NSFont.monospacedSystemFont(ofSize: 14, weight: .regular)
+    private(set) var palette = EditorTheme.system.palette
+    private var paragraphStyle = NSParagraphStyle.default
 
     /// Above this size only the edited paragraphs are re-highlighted.
     private let fullHighlightLimit = 300_000
 
     var baseAttributes: [NSAttributedString.Key: Any] {
-        [.font: baseFont, .foregroundColor: NSColor.textColor]
+        [.font: baseFont, .foregroundColor: palette.text, .paragraphStyle: paragraphStyle]
     }
 
-    init(fontSize: CGFloat) {
-        self.fontSize = fontSize
-        super.init()
-        makeFonts()
-    }
-
-    private func makeFonts() {
-        baseFont = .monospacedSystemFont(ofSize: fontSize, weight: .regular)
-        boldFont = .monospacedSystemFont(ofSize: fontSize, weight: .bold)
-        italicFont = NSFontManager.shared.convert(baseFont, toHaveTrait: .italicFontMask)
+    func configure(font: NSFont, theme: EditorTheme, lineSpacing: CGFloat) {
+        baseFont = font
+        boldFont = NSFontManager.shared.convert(font, toHaveTrait: .boldFontMask)
+        italicFont = NSFontManager.shared.convert(font, toHaveTrait: .italicFontMask)
+        palette = theme.palette
+        let style = NSMutableParagraphStyle()
+        style.lineHeightMultiple = max(1, lineSpacing)
+        paragraphStyle = style
     }
 
     func textStorage(_ textStorage: NSTextStorage, didProcessEditing editedMask: NSTextStorageEditActions,
@@ -55,30 +53,33 @@ final class MarkdownHighlighter: NSObject, NSTextStorageDelegate {
             }
         }
 
-        let muted = NSColor.secondaryLabelColor
-        let accent = NSColor.controlAccentColor
-        let code = NSColor.systemPink
-
+        let p = palette
         apply(Self.heading, [.font: boldFont])
-        apply(Self.heading, group: 1, [.foregroundColor: accent])
-        apply(Self.setextUnderline, [.foregroundColor: accent])
-        apply(Self.quote, [.foregroundColor: muted])
-        apply(Self.listMarker, group: 1, [.foregroundColor: accent])
-        apply(Self.rule, [.foregroundColor: muted])
+        apply(Self.heading, group: 1, [.foregroundColor: p.accent])
+        apply(Self.setextUnderline, [.foregroundColor: p.accent])
+        apply(Self.quote, [.foregroundColor: p.muted])
+        apply(Self.listMarker, group: 1, [.foregroundColor: p.accent])
+        apply(Self.rule, [.foregroundColor: p.muted])
         apply(Self.bold, [.font: boldFont])
         apply(Self.italic, [.font: italicFont])
-        apply(Self.strike, [.strikethroughStyle: NSUnderlineStyle.single.rawValue, .foregroundColor: muted])
-        apply(Self.link, group: 1, [.foregroundColor: NSColor.linkColor])
-        apply(Self.link, group: 2, [.foregroundColor: muted])
-        apply(Self.inlineCode, [.foregroundColor: code])
+        apply(Self.strike, [.strikethroughStyle: NSUnderlineStyle.single.rawValue, .foregroundColor: p.muted])
+        apply(Self.mark, [.backgroundColor: p.accent.withAlphaComponent(0.18)])
+        apply(Self.link, group: 1, [.foregroundColor: p.link])
+        apply(Self.link, group: 2, [.foregroundColor: p.muted])
+        apply(Self.footnote, [.foregroundColor: p.link])
+        apply(Self.inlineMath, [.foregroundColor: p.code])
+        apply(Self.inlineCode, [.foregroundColor: p.code])
+        apply(Self.htmlComment, [.foregroundColor: p.muted])
 
-        // Code fences and front matter win over everything inside them
-        for block in Self.codeBlocks(in: text as NSString) where NSIntersectionRange(block, range).length > 0 {
-            let r = NSIntersectionRange(block, range)
-            storage.setAttributes([.font: baseFont, .foregroundColor: code], range: r)
+        // Code fences, math blocks and front matter win over everything inside them
+        let ns = text as NSString
+        for block in Self.codeBlocks(in: ns) where NSIntersectionRange(block, range).length > 0 {
+            storage.setAttributes(baseAttributes.merging([.foregroundColor: p.code]) { $1 },
+                                  range: NSIntersectionRange(block, range))
         }
-        if let fm = Self.frontMatter(in: text as NSString), NSIntersectionRange(fm, range).length > 0 {
-            storage.setAttributes([.font: baseFont, .foregroundColor: muted], range: NSIntersectionRange(fm, range))
+        if let fm = Self.frontMatter(in: ns), NSIntersectionRange(fm, range).length > 0 {
+            storage.setAttributes(baseAttributes.merging([.foregroundColor: p.muted]) { $1 },
+                                  range: NSIntersectionRange(fm, range))
         }
         storage.endEditing()
     }
@@ -95,10 +96,14 @@ final class MarkdownHighlighter: NSObject, NSTextStorageDelegate {
     private static let bold = regex(#"(\*\*|__)(?=\S)[^\n]+?(?<=\S)\1"#)
     private static let italic = regex(#"(?<![*\w])\*(?![\s*])[^*\n]+?(?<![\s*])\*(?![*\w])|(?<![_\w])_(?![\s_])[^_\n]+?(?<![\s_])_(?![_\w])"#)
     private static let strike = regex(#"~~(?=\S)[^~\n]+?(?<=\S)~~"#)
+    private static let mark = regex(#"==(?=\S)[^=\n]+?(?<=\S)=="#)
     private static let link = regex(#"!?(\[[^\]\n]*\])(\([^)\n]*\))"#)
+    private static let footnote = regex(#"\[\^[^\]\s]+\]"#)
+    private static let inlineMath = regex(#"(?<![\\$])\$(?=\S)[^$\n]+?(?<=\S)\$(?!\d)"#)
     private static let inlineCode = regex(#"(`+)[^`\n]+?\1"#)
+    private static let htmlComment = regex(#"<!--[\s\S]*?-->"#)
 
-    /// Ranges of fenced code blocks, including the fences.
+    /// Ranges of fenced code blocks and $$ math blocks, including the delimiters.
     private static func codeBlocks(in text: NSString) -> [NSRange] {
         var blocks: [NSRange] = []
         var open: (start: Int, fence: String)?
@@ -107,13 +112,22 @@ final class MarkdownHighlighter: NSObject, NSTextStorageDelegate {
             let lineRange = text.lineRange(for: NSRange(location: location, length: 0))
             let line = text.substring(with: lineRange).trimmingCharacters(in: .whitespacesAndNewlines)
             if let o = open {
-                if line.hasPrefix(o.fence), line.allSatisfy({ $0 == o.fence.first }) {
+                let closes = o.fence == "$$"
+                    ? line.hasSuffix("$$")
+                    : line.hasPrefix(o.fence) && line.allSatisfy({ $0 == o.fence.first })
+                if closes {
                     blocks.append(NSRange(location: o.start, length: NSMaxRange(lineRange) - o.start))
                     open = nil
                 }
             } else if line.hasPrefix("```") || line.hasPrefix("~~~") {
                 let ch = line.first!
                 open = (lineRange.location, String(line.prefix(while: { $0 == ch })))
+            } else if line.hasPrefix("$$") {
+                if line.count > 2, line.hasSuffix("$$") {
+                    blocks.append(lineRange)
+                } else {
+                    open = (lineRange.location, "$$")
+                }
             }
             location = NSMaxRange(lineRange)
         }

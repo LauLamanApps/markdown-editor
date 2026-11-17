@@ -2,21 +2,40 @@ import Foundation
 
 /// Small, dependency-free Markdown → HTML renderer.
 ///
-/// Covers CommonMark basics plus the GitHub-flavoured extensions people
-/// actually use in READMEs: tables, task lists, strikethrough, autolinks,
-/// fenced code, alerts (`> [!NOTE]`) and YAML front matter.
+/// Covers CommonMark basics plus the extensions people actually use:
+/// GitHub-flavoured tables, task lists, strikethrough, autolinks, fenced
+/// code, alerts (`> [!NOTE]`), YAML front matter, footnotes, `==highlight==`,
+/// `[TOC]`, TeX math (`$…$`, `$$…$$`) and Mermaid diagrams. Math and diagrams
+/// are emitted as marked-up source for KaTeX / Mermaid to render in the page.
 public struct MarkdownRenderer {
     /// Resolves an image `src` to something the preview can display
     /// (e.g. a data: URI). Return nil to keep the original src.
     public var imageResolver: ((String) -> String?)?
+    var options: MarkdownOptions
 
     private var references: [String: (url: String, title: String?)] = [:]
+    private var footnoteDefinitions: [String: [String]] = [:]
 
-    public init(imageResolver: ((String) -> String?)? = nil) {
+    /// Mutable state shared by the (non-mutating) block and inline passes.
+    private final class State {
+        var footnoteOrder: [String] = []
+        var slugCounts: [String: Int] = [:]
+        var headings: [(level: Int, id: String, html: String)] = []
+    }
+    private var state = State()
+
+    static let tocPlaceholder = "<!--md-toc-->"
+
+    init(options: MarkdownOptions = MarkdownOptions(), imageResolver: ((String) -> String?)? = nil) {
+        self.options = options
         self.imageResolver = imageResolver
     }
 
     public mutating func render(_ markdown: String) -> String {
+        state = State()
+        references = [:]
+        footnoteDefinitions = [:]
+
         var text = markdown
             .replacingOccurrences(of: "\r\n", with: "\n")
             .replacingOccurrences(of: "\r", with: "\n")
@@ -27,16 +46,21 @@ public struct MarkdownRenderer {
         var html = ""
 
         if let (frontMatter, rest) = Self.extractFrontMatter(lines) {
-            html += "<pre class=\"front-matter\"><code>\(escape(frontMatter.joined(separator: "\n")))</code></pre>\n"
+            html += renderFrontMatter(frontMatter)
             lines = rest
         }
 
-        lines = collectReferences(lines)
+        lines = collectDefinitions(lines)
         html += renderBlocks(lines, tight: false)
+        html += renderFootnotes()
+
+        if options.tableOfContents, html.contains(Self.tocPlaceholder) {
+            html = html.replacingOccurrences(of: Self.tocPlaceholder, with: tableOfContents())
+        }
         return html
     }
 
-    // MARK: - Front matter & references
+    // MARK: - Front matter, references, footnotes
 
     private static func extractFrontMatter(_ lines: [String]) -> ([String], [String])? {
         guard lines.first?.trimmingCharacters(in: .whitespaces) == "---" else { return nil }
@@ -49,14 +73,42 @@ public struct MarkdownRenderer {
         return nil
     }
 
+    private func renderFrontMatter(_ lines: [String]) -> String {
+        switch options.frontMatter {
+        case .hidden:
+            return ""
+        case .table:
+            // Flat `key: value` pairs read best as a table; anything nested stays code
+            let pairs = lines.filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+                .map { Self.firstMatch($0, #"^([A-Za-z0-9_.-]+):\s*(.*)$"#) }
+            if !pairs.isEmpty, pairs.allSatisfy({ $0 != nil }) {
+                var html = "<table class=\"front-matter\">\n<tbody>\n"
+                for m in pairs.compactMap({ $0 }) {
+                    var value = m[2]
+                    if value.count >= 2, let q = value.first, q == "\"" || q == "'", value.last == q {
+                        value = String(value.dropFirst().dropLast())
+                    }
+                    html += "<tr><th>\(escape(m[1]))</th><td>\(escape(value))</td></tr>\n"
+                }
+                return html + "</tbody>\n</table>\n"
+            }
+            fallthrough
+        case .code:
+            return "<pre class=\"front-matter\"><code>\(escape(lines.joined(separator: "\n")))</code></pre>\n"
+        }
+    }
+
     private static let referenceRegex = try! NSRegularExpression(
         pattern: #"^ {0,3}\[([^\]]+)\]:\s*<?([^\s>]+)>?(?:\s+(?:"([^"]*)"|'([^']*)'|\(([^)]*)\)))?\s*$"#)
 
-    /// Strips link reference definitions (outside code fences) and records them.
-    private mutating func collectReferences(_ lines: [String]) -> [String] {
+    /// Strips link reference and footnote definitions (outside code fences) and records them.
+    private mutating func collectDefinitions(_ lines: [String]) -> [String] {
         var out: [String] = []
         var fence: String?
-        for line in lines {
+        var i = 0
+        while i < lines.count {
+            let line = lines[i]
+            i += 1
             if let f = fence {
                 if Self.isFenceClose(line, fence: f) { fence = nil }
                 out.append(line)
@@ -67,9 +119,32 @@ public struct MarkdownRenderer {
                 out.append(line)
                 continue
             }
+            if options.footnotes, let m = Self.firstMatch(line, #"^ {0,3}\[\^([^\]\s]+)\]:\s?(.*)$"#) {
+                var body = [m[2]]
+                // Continuation: indented lines, possibly separated by blank lines
+                while i < lines.count {
+                    let next = lines[i]
+                    if next.leadingSpaces >= 4 {
+                        body.append(String(next.dropFirst(4)))
+                    } else if next.trimmingCharacters(in: .whitespaces).isEmpty,
+                              i + 1 < lines.count, lines[i + 1].leadingSpaces >= 4 {
+                        body.append("")
+                    } else if !next.trimmingCharacters(in: .whitespaces).isEmpty,
+                              !(body.last ?? "").isEmpty, !Self.startsBlock(next),
+                              Self.firstMatch(next, #"^ {0,3}\[\^[^\]]+\]:"#) == nil {
+                        body.append(next) // lazy continuation
+                    } else {
+                        break
+                    }
+                    i += 1
+                }
+                let key = m[1].lowercased()
+                if footnoteDefinitions[key] == nil { footnoteDefinitions[key] = body }
+                continue
+            }
             let ns = line as NSString
             if let m = Self.referenceRegex.firstMatch(in: line, range: NSRange(location: 0, length: ns.length)),
-               !line.hasPrefix(" [^") && !line.hasPrefix("[^") {
+               !line.trimmingLeadingSpaces().hasPrefix("[^") {
                 let label = ns.substring(with: m.range(at: 1)).lowercased()
                 let url = ns.substring(with: m.range(at: 2))
                 var title: String?
@@ -82,6 +157,59 @@ public struct MarkdownRenderer {
             out.append(line)
         }
         return out
+    }
+
+    private func footnoteNumber(_ id: String) -> Int? {
+        let key = id.lowercased()
+        guard footnoteDefinitions[key] != nil else { return nil }
+        if let n = state.footnoteOrder.firstIndex(of: key) { return n + 1 }
+        state.footnoteOrder.append(key)
+        return state.footnoteOrder.count
+    }
+
+    private func renderFootnotes() -> String {
+        guard !state.footnoteOrder.isEmpty else { return "" }
+        var html = "<section class=\"footnotes\">\n<ol>\n"
+        var k = 0
+        // Footnote bodies may reference further footnotes, so the order can grow while rendering
+        while k < state.footnoteOrder.count {
+            let key = state.footnoteOrder[k]
+            let id = Self.slug(key)
+            var body = renderBlocks(footnoteDefinitions[key] ?? [], tight: false)
+            let backref = " <a href=\"#fnref-\(id)\" class=\"footnote-backref\">↩</a>"
+            if body.hasSuffix("</p>\n") {
+                body = String(body.dropLast(5)) + backref + "</p>\n"
+            } else {
+                body += backref
+            }
+            html += "<li id=\"fn-\(id)\">\n\(body)</li>\n"
+            k += 1
+        }
+        return html + "</ol>\n</section>\n"
+    }
+
+    private func tableOfContents() -> String {
+        guard let minLevel = state.headings.map(\.level).min() else { return "" }
+        var html = "<nav class=\"toc\">\n"
+        var depth = 0
+        for h in state.headings {
+            let level = h.level - minLevel + 1
+            if level > depth {
+                for _ in depth..<level { html += "<ul>\n<li>" }
+            } else {
+                html += "</li>\n"
+                for _ in level..<depth { html += "</ul>\n</li>\n" }
+                html += "<li>"
+            }
+            depth = level
+            html += "<a href=\"#\(h.id)\">\(Self.stripLinks(h.html))</a>"
+        }
+        for _ in 0..<depth { html += "</li>\n</ul>\n" }
+        return html + "</nav>\n"
+    }
+
+    private static func stripLinks(_ html: String) -> String {
+        html.replacingOccurrences(of: "</?a(\\s[^>]*)?>", with: "", options: .regularExpression)
     }
 
     // MARK: - Block level
@@ -156,8 +284,54 @@ public struct MarkdownRenderer {
                 }
                 i += 1 // closing fence
                 let lang = open.info.split(separator: " ").first.map(String.init) ?? ""
-                let cls = lang.isEmpty ? "" : " class=\"language-\(escapeAttr(lang))\""
-                html += "<pre><code\(cls)>\(escape(code.joined(separator: "\n")))</code></pre>\n"
+                let source = escape(code.joined(separator: "\n"))
+                if options.math, lang.lowercased() == "math" {
+                    html += "<div class=\"math math-display\">\(source)</div>\n"
+                } else if options.mermaid, lang.lowercased() == "mermaid" {
+                    html += "<pre class=\"mermaid\">\(source)</pre>\n"
+                } else {
+                    let cls = lang.isEmpty ? "" : " class=\"language-\(escapeAttr(lang))\""
+                    html += "<pre><code\(cls)>\(source)</code></pre>\n"
+                }
+                continue
+            }
+
+            // Display math: $$ … $$ on their own lines (or one line)
+            if options.math, paragraph.isEmpty, line.leadingSpaces < 4, trimmed.hasPrefix("$$") {
+                var tex: [String] = []
+                var rest = String(trimmed.dropFirst(2))
+                var closed = false
+                if rest.hasSuffix("$$") {
+                    tex.append(String(rest.dropLast(2)))
+                    closed = true
+                    i += 1
+                } else {
+                    if !rest.isEmpty { tex.append(rest) }
+                    var k = i + 1
+                    while k < lines.count {
+                        let t = lines[k].trimmingCharacters(in: .whitespaces)
+                        if t.hasSuffix("$$") {
+                            rest = String(t.dropLast(2))
+                            if !rest.isEmpty { tex.append(rest) }
+                            closed = true
+                            break
+                        }
+                        if t.isEmpty { break } // math blocks don't span paragraphs
+                        tex.append(lines[k])
+                        k += 1
+                    }
+                    if closed { i = k + 1 }
+                }
+                if closed {
+                    html += "<div class=\"math math-display\">\(escape(tex.joined(separator: "\n")))</div>\n"
+                    continue
+                }
+            }
+
+            // Table of contents placeholder
+            if options.tableOfContents, paragraph.isEmpty, trimmed.lowercased() == "[toc]" {
+                html += Self.tocPlaceholder + "\n"
+                i += 1
                 continue
             }
 
@@ -249,7 +423,16 @@ public struct MarkdownRenderer {
     }
 
     private func heading(_ level: Int, _ content: String) -> String {
-        let id = Self.slug(content)
+        // Unique ids, GitHub style: intro, intro-1, intro-2 …
+        let base = Self.slug(content)
+        var id = base
+        if let n = state.slugCounts[base] {
+            id = "\(base)-\(n)"
+            state.slugCounts[base] = n + 1
+        } else {
+            state.slugCounts[base] = 1
+        }
+        state.headings.append((level, id, content))
         return "<h\(level) id=\"\(id)\">\(content)</h\(level)>\n"
     }
 
@@ -530,6 +713,28 @@ public struct MarkdownRenderer {
                 }
             }
 
+            // Soft line break rendered as a hard break (option)
+            if c == "\n", options.hardLineBreaks {
+                out += "<br>\n"; i += 1; continue
+            }
+
+            // Inline math: $…$ (no space inside the dollars, no digit right after) and $$…$$
+            if c == "$", options.math, let (html, next) = parseMath(s, i, to) {
+                out += html
+                i = next
+                continue
+            }
+
+            // Footnote reference [^id]
+            if c == "[", options.footnotes, i + 1 < to, s[i + 1] == "^",
+               let close = indexOf("]", s, i + 2, to), close > i + 2,
+               let n = footnoteNumber(String(s[(i + 2)..<close])) {
+                let id = Self.slug(String(s[(i + 2)..<close]).lowercased())
+                out += "<sup class=\"footnote-ref\"><a href=\"#fn-\(id)\" id=\"fnref-\(id)\">\(n)</a></sup>"
+                i = close + 1
+                continue
+            }
+
             // Hard break: two+ spaces before newline
             if c == " ", let nl = indexAfterSpaces(s, i, to), nl < to, s[nl] == "\n", nl - i >= 2 {
                 out += "<br>\n"; i = nl + 1; continue
@@ -588,8 +793,8 @@ public struct MarkdownRenderer {
                 continue
             }
 
-            // Emphasis / strong / strikethrough
-            if c == "*" || c == "_" || c == "~" {
+            // Emphasis / strong / strikethrough / highlight
+            if c == "*" || c == "_" || c == "~" || (c == "=" && options.highlight) {
                 if let (html, next) = parseEmphasis(s, i, to) {
                     out += html
                     i = next
@@ -609,6 +814,12 @@ public struct MarkdownRenderer {
                     out += String(s[i...end]); i = end + 1; continue
                 }
                 out += "&amp;"; i += 1; continue
+            }
+
+            if options.smartPunctuation, let (text, next) = smartPunctuation(s, i, from, to) {
+                out += text
+                i = next
+                continue
             }
 
             out += escape(String(c))
@@ -739,10 +950,70 @@ public struct MarkdownRenderer {
         return ("<a href=\"\(escapeAttr(href))\">\(escape(url))</a>", i + url.count)
     }
 
+    private func parseMath(_ s: [Character], _ i: Int, _ to: Int) -> (String, Int)? {
+        if i + 1 < to, s[i + 1] == "$" {
+            // $$…$$ inside a paragraph: display math
+            var k = i + 2
+            while k + 1 < to {
+                if s[k] == "\\" { k += 2; continue }
+                if s[k] == "$", s[k + 1] == "$" {
+                    let tex = String(s[(i + 2)..<k])
+                    guard !tex.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+                    return ("<span class=\"math math-display\">\(escape(tex))</span>", k + 2)
+                }
+                k += 1
+            }
+            return nil
+        }
+        guard i + 1 < to, !s[i + 1].isWhitespace else { return nil }
+        var k = i + 1
+        while k < to {
+            if s[k] == "\\" { k += 2; continue }
+            if s[k] == "\n", k + 1 < to, s[k + 1] == "\n" { return nil }
+            if s[k] == "$" {
+                if s[k - 1].isWhitespace { return nil }
+                if k + 1 < to, s[k + 1].isNumber { return nil } // "$5 and $6"
+                let tex = String(s[(i + 1)..<k])
+                return ("<span class=\"math math-inline\">\(escape(tex))</span>", k + 1)
+            }
+            k += 1
+        }
+        return nil
+    }
+
+    /// Curly quotes, en/em dashes and ellipses.
+    private func smartPunctuation(_ s: [Character], _ i: Int, _ from: Int, _ to: Int) -> (String, Int)? {
+        let c = s[i]
+        func at(_ k: Int) -> Character? { k >= from && k < to ? s[k] : nil }
+        switch c {
+        case "-":
+            if at(i + 1) == "-" {
+                if at(i + 2) == "-" { return ("\u{2014}", i + 3) }
+                return ("\u{2013}", i + 2)
+            }
+        case ".":
+            if at(i + 1) == ".", at(i + 2) == "." { return ("\u{2026}", i + 3) }
+        case "\"", "'":
+            let prev = at(i - 1)
+            let opening = prev == nil || prev!.isWhitespace || "([{\u{2014}\u{2013}".contains(prev!)
+            if c == "\"" { return (opening ? "\u{201C}" : "\u{201D}", i + 1) }
+            return (opening ? "\u{2018}" : "\u{2019}", i + 1)
+        default:
+            break
+        }
+        return nil
+    }
+
     private func parseEmphasis(_ s: [Character], _ i: Int, _ to: Int) -> (String, Int)? {
         let c = s[i]
         var run = 0
         while i + run < to, s[i + run] == c { run += 1 }
+
+        if c == "=" {
+            guard run == 2, i + 2 < to, !s[i + 2].isWhitespace,
+                  let close = findCloser(s, i + 2, to, c, 2) else { return nil }
+            return ("<mark>\(renderInline(s, i + 2, close))</mark>", close + 2)
+        }
 
         if c == "~" {
             guard run == 2 || run == 1 else { return nil }

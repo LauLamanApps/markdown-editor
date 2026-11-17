@@ -1,0 +1,18 @@
+/* Solarized — Ethan Schoonover's palette, light and dark */
+:root {
+  --font-body: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+  --font-heading: var(--font-body);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --heading-rule: 1px solid var(--border);
+  --fg: #586e75; --muted: #93a1a1; --bg: #fdf6e3; --border: #e6dfc8; --heading: #073642;
+  --code-bg: #eee8d5; --link: #268bd2; --quote: #839496; --quote-border: #b58900; --row-alt: #f6efd9; --mark-bg: #f3dc8f;
+  --note: #268bd2; --tip: #859900; --important: #6c71c4; --warning: #b58900; --caution: #dc322f;
+  --tok-comment: #93a1a1; --tok-keyword: #859900; --tok-string: #2aa198; --tok-number: #d33682;
+  --tok-function: #268bd2; --tok-type: #b58900; --tok-tag: #268bd2; --tok-attr: #b58900; --tok-operator: #cb4b16;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fg: #93a1a1; --muted: #657b83; --bg: #002b36; --border: #0d4352; --heading: #eee8d5;
+    --code-bg: #073642; --link: #2aa1f0; --quote: #839496; --quote-border: #b58900; --row-alt: #04313d; --mark-bg: #5c4a07;
+  }
+}

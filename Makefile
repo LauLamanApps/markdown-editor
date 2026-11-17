@@ -1,9 +1,9 @@
 # Builds the Quick Look extension with the Command Line Tools only — no Xcode project needed.
 
-VERSION     ?= 1.0.0
+VERSION     ?= 2.0.0
 BUNDLE_ID   ?= nl.LauLamanApps.MarkdownPreview
-MIN_MACOS   ?= 12.0
-ARCHS       ?= $(shell uname -m)
+MIN_MACOS   ?= 14.0
+ARCHS       ?= arm64
 INSTALL_DIR ?= /Applications
 SIGN_ID     ?= -
 
@@ -26,7 +26,9 @@ all: app
 
 app: $(APP)
 
-$(APP): $(EXT_SRC) $(APP_SRC) Resources/*.plist Resources/*.entitlements Makefile
+WEB_FILES  = $(shell find Resources/Web -type f)
+
+$(APP): $(EXT_SRC) $(APP_SRC) $(WEB_FILES) Resources/*.plist Resources/*.entitlements Makefile
 	@rm -rf $(APP)
 	@mkdir -p $(APP)/Contents/MacOS $(APPEX)/Contents/MacOS $(BUILD)/obj
 	@for arch in $(ARCHS); do \
@@ -37,11 +39,16 @@ $(APP): $(EXT_SRC) $(APP_SRC) Resources/*.plist Resources/*.entitlements Makefil
 			-framework QuickLookUI -framework UniformTypeIdentifiers \
 			$(EXT_SRC) -o $(BUILD)/obj/ext-$$arch || exit 1; \
 		$(SWIFTC) -target $$arch-apple-macos$(MIN_MACOS) -module-name $(APP_NAME) \
-			-framework WebKit -framework UniformTypeIdentifiers \
+			-framework WebKit -framework SwiftUI -framework UniformTypeIdentifiers \
 			$(APP_SRC) -o $(BUILD)/obj/app-$$arch || exit 1; \
 	done
 	@lipo -create $(foreach a,$(ARCHS),$(BUILD)/obj/ext-$(a)) -output $(APPEX)/Contents/MacOS/$(APP_NAME)Extension
 	@lipo -create $(foreach a,$(ARCHS),$(BUILD)/obj/app-$(a)) -output $(APP)/Contents/MacOS/$(APP_NAME)
+	@# Web assets: everything for the app, only the stylesheets for Quick Look (it can't run scripts)
+	@mkdir -p $(APP)/Contents/Resources $(APPEX)/Contents/Resources/Web
+	@cp -R Resources/Web $(APP)/Contents/Resources/
+	@cp -R Resources/Web/base.css Resources/Web/themes $(APPEX)/Contents/Resources/Web/
+	@cp -R ThirdPartyLicenses $(APP)/Contents/Resources/
 	@sed -e 's/__BUNDLE_ID__/$(BUNDLE_ID)/g' -e 's/__VERSION__/$(VERSION)/g' Resources/Extension-Info.plist > $(APPEX)/Contents/Info.plist
 	@sed -e 's/__BUNDLE_ID__/$(BUNDLE_ID)/g' -e 's/__VERSION__/$(VERSION)/g' Resources/App-Info.plist > $(APP)/Contents/Info.plist
 	@codesign --force --sign "$(SIGN_ID)" --options runtime --entitlements Resources/Extension.entitlements $(APPEX)
@@ -75,8 +82,18 @@ $(BUILD)/md2html: $(CLI_SRC)
 	@mkdir -p $(BUILD)
 	@$(SWIFTC) -module-name md2html $(CLI_SRC) -o $@
 
-test: $(BUILD)/md2html
+$(BUILD)/preview-check: Tests/PreviewCheck/main.swift Sources/App/WebResourceHandler.swift $(SHARED_SRC)
+	@mkdir -p $(BUILD)
+	@$(SWIFTC) -module-name PreviewCheck -framework WebKit Tests/PreviewCheck/main.swift Sources/App/WebResourceHandler.swift $(SHARED_SRC) -o $@
+
+$(BUILD)/editor-check: Tests/EditorCheck/main.swift Sources/App/MarkdownTextView.swift Sources/App/Settings.swift $(SHARED_SRC)
+	@mkdir -p $(BUILD)
+	@$(SWIFTC) -module-name EditorCheck Tests/EditorCheck/main.swift Sources/App/MarkdownTextView.swift Sources/App/Settings.swift $(SHARED_SRC) -o $@
+
+test: $(BUILD)/md2html $(BUILD)/preview-check $(BUILD)/editor-check
 	@./Tests/run.sh $(BUILD)/md2html
+	@$(BUILD)/editor-check
+	@$(BUILD)/preview-check Tests/cases/extensions.md
 
 release: clean app
 	@cd $(BUILD) && ditto -c -k --keepParent $(APP_NAME).app $(APP_NAME)-$(VERSION).zip

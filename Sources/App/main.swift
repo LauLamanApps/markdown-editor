@@ -4,7 +4,12 @@ import Cocoa
 /// extension, so installing the app is what enables the Finder previews.
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillFinishLaunching(_ notification: Notification) {
+        AppSettings.register()
         NSApp.mainMenu = MainMenu.build()
+    }
+
+    @objc func showSettings(_ sender: Any?) {
+        SettingsWindowController.shared.show()
     }
 
     func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool { true }

@@ -12,5 +12,5 @@ jobs:
       - uses: actions/checkout@v4
       - name: Snapshot tests
         run: make test
-      - name: Build app (universal)
-        run: make app ARCHS="arm64 x86_64"
+      - name: Build app
+        run: make app
