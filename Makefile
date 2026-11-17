@@ -20,7 +20,7 @@ CLI_SRC    = $(wildcard Sources/CLI/*.swift) $(SHARED_SRC)
 
 SWIFTC = xcrun swiftc -O -swift-version 5
 
-.PHONY: all app install uninstall test release clean
+.PHONY: all app install uninstall test release clean icons
 
 all: app
 
@@ -28,7 +28,7 @@ app: $(APP)
 
 WEB_FILES  = $(shell find Resources/Web -type f)
 
-$(APP): $(EXT_SRC) $(APP_SRC) $(WEB_FILES) Resources/*.plist Resources/*.entitlements Makefile
+$(APP): $(EXT_SRC) $(APP_SRC) $(WEB_FILES) Resources/Icons/*.icns Resources/*.plist Resources/*.entitlements Makefile
 	@rm -rf $(APP)
 	@mkdir -p $(APP)/Contents/MacOS $(APPEX)/Contents/MacOS $(BUILD)/obj
 	@for arch in $(ARCHS); do \
@@ -49,6 +49,7 @@ $(APP): $(EXT_SRC) $(APP_SRC) $(WEB_FILES) Resources/*.plist Resources/*.entitle
 	@cp -R Resources/Web $(APP)/Contents/Resources/
 	@cp -R Resources/Web/base.css Resources/Web/themes $(APPEX)/Contents/Resources/Web/
 	@cp -R ThirdPartyLicenses $(APP)/Contents/Resources/
+	@cp Resources/Icons/AppIcon.icns Resources/Icons/MarkdownDocument.icns $(APP)/Contents/Resources/
 	@sed -e 's/__BUNDLE_ID__/$(BUNDLE_ID)/g' -e 's/__VERSION__/$(VERSION)/g' Resources/Extension-Info.plist > $(APPEX)/Contents/Info.plist
 	@sed -e 's/__BUNDLE_ID__/$(BUNDLE_ID)/g' -e 's/__VERSION__/$(VERSION)/g' Resources/App-Info.plist > $(APP)/Contents/Info.plist
 	@codesign --force --sign "$(SIGN_ID)" --options runtime --entitlements Resources/Extension.entitlements $(APPEX)
@@ -98,6 +99,10 @@ test: $(BUILD)/md2html $(BUILD)/preview-check $(BUILD)/editor-check
 release: clean app
 	@cd $(BUILD) && ditto -c -k --keepParent $(APP_NAME).app $(APP_NAME)-$(VERSION).zip
 	@shasum -a 256 $(BUILD)/$(APP_NAME)-$(VERSION).zip
+
+# Regenerates Resources/Icons from Tools/make-icons.swift
+icons:
+	@xcrun swift Tools/make-icons.swift Resources/Icons
 
 clean:
 	@rm -rf $(BUILD)

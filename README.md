@@ -1,3 +1,5 @@
+<img src="Resources/Icons/AppIcon.png" width="128" alt="Markdown Preview icon">
+
 # Markdown Preview
 
 A native Markdown editor for macOS with a live preview, plus a Quick Look extension: select a Markdown file in Finder, press **Space**, and see it rendered instead of raw text.
@@ -129,4 +131,4 @@ Push a tag like `v2.0.0`. The release workflow runs the tests, builds the app an
 
 ## License
 
-MIT. Third-party components are listed in [`ThirdPartyLicenses/`](ThirdPartyLicenses): Prism (MIT), KaTeX (MIT), Mermaid (MIT).
+MIT. The icons are built on the [Markdown Mark](https://github.com/dcurtis/markdown-mark) by Dustin Curtis (public domain); regenerate them with `make icons`. Third-party components are listed in [`ThirdPartyLicenses/`](ThirdPartyLicenses): Prism (MIT), KaTeX (MIT), Mermaid (MIT).
